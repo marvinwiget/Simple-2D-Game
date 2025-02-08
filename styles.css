@@ -1,13 +1,15 @@
 body {
     text-align: center;
-    background-color: black;
+    background-color: rgb(32, 32, 32);
+    color: white;
 }
 
 #board {
-    border: 3px solid;
+    border: 10px solid rgb(124, 16, 119);
     background-color:lightgrey;
 }
 
 .description {
     font-size: xx-large;
+    margin: 0px;
 }

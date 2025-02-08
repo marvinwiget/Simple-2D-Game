@@ -78,15 +78,21 @@ let enemyX = 200;
 let enemyY = 100;
 let enemyWidth = 64;
 let enemyHeight = 64;
-let enemy = {
-    x: enemyX,
-    y: enemyY,
-    width: enemyWidth,
-    height: enemyHeight,
-    health: 100,
-    maxHealth: 100
+class Enemy {
+    constructor(x,y,width,height,maxHealth) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.maxHealth = maxHealth;
+        this.health = maxHealth;
+    }
 }
-let enemyImg;
+
+const enemy = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100);
+
+const enemies = [];
+enemies.push(enemy);
 
 
 // on load function
@@ -141,8 +147,8 @@ window.onload = function() {
 
     weapon.img.src = weapon_left_1;
 
-    enemyImg = new Image();
-    enemyImg.src = "./assets/enemy.png";
+    enemies[0].img = new Image();
+    enemies[0].img.src = "./assets/enemy.png";
 
     requestAnimationFrame(update);
 
@@ -171,10 +177,9 @@ window.onload = function() {
 // every tick
 function update() {
     ctx.clearRect(0,0,boardWidth,boardHeight);
-
     drawPlayerDash(dashX, dashY);
-    drawEnemy();
-    drawPlayer();;
+    drawPlayer();
+    for (let i=0;i<enemies.length;i++) drawEnemy(enemies[i]);
     drawWeapon();
     displayHealthbar();
     displayCooldown();
@@ -182,15 +187,12 @@ function update() {
     requestAnimationFrame(update);
 }
 
-function spriteChange() {
-    player.sprite = !player.sprite;
-}
-
 function fps() {
 
     movePlayer();
     useWeapon();
 }
+
 
 function drawPlayer() {
     choosePlayerImage();
@@ -224,8 +226,11 @@ function choosePlayerImage() {
     }
 }
 
-function drawEnemy() {
-    if (enemy.health > 0) ctx.drawImage(enemyImg,enemy.x,enemy.y,enemy.width,enemy.height);
+function drawEnemy(e) {
+    for (let i=0;i<enemies.length;i++) {
+        if (enemies[i].health <= 0) enemies.splice(i,1);
+    }
+    ctx.drawImage(e.img,e.x,e.y,e.width,e.height);
 }
 
 function displayCooldown() {
@@ -390,3 +395,4 @@ function isCriticalHealth(a) {
     if (ratio <= 0.25) return true;
     return false;
 }
+function spriteChange() {player.sprite = !player.sprite;}
