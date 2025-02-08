@@ -4,7 +4,10 @@ let boardHeight = 768;
 let ctx;
 
 // sounds
-const playerDashSound = new Audio("./assets/dash.wav");
+const playerDashSound = new Audio("./assets/player/playerDash.wav");
+const weapon_standard = new Audio("./assets/weapon/weapon_standard.wav");
+const weapon_hit = new Audio("./assets/weapon/weapon_hit.wav");
+const playerWalkSound = new Audio("./assets/player/playerWalk.wav");
 
 // player
 let playerX = 300;
@@ -24,6 +27,8 @@ const player = {
     height: playerHeight,
     speed: playerSpeed,
     health: 100,
+    maxHealth: 100,
+    stunned: false,
     onDashCooldown: false,
     dashActive: false,
     isMoving: false,
@@ -59,11 +64,14 @@ const weapon = {
     y: boardHeight,
     width: weaponWidth,
     height: weaponHeight,
+    animationStart: false,
+    animationEnd: false,
     active: false,
     onCooldown: false,
     damage: 10
 }
-let weaponImg;
+let weapon_start;
+let weapon_end;
 
 // enemy
 let enemyX = 200;
@@ -75,7 +83,8 @@ let enemy = {
     y: enemyY,
     width: enemyWidth,
     height: enemyHeight,
-    health: 100
+    health: 100,
+    maxHealth: 100
 }
 let enemyImg;
 
@@ -103,9 +112,34 @@ window.onload = function() {
     walk_right_1 = "./assets/player/walk_right_1.png";
     walk_right_2 = "./assets/player/walk_right_2.png"; 
 
+    player.img.src = idle_down_2;
+    player.img.src = walk_down_1;
+    player.img.src = walk_down_2;
+    player.img.src = idle_up_1;
+    player.img.src = idle_up_2;
+    player.img.src = walk_up_1;
+    player.img.src = walk_up_2;
+    player.img.src = idle_left_1;
+    player.img.src = idle_left_2;
+    player.img.src = walk_left_1;
+    player.img.src = walk_left_2;
+    player.img.src = idle_right_1;
+    player.img.src = idle_right_2;
+    player.img.src = walk_right_1;
+    player.img.src = walk_right_2;
+    player.img.src = idle_down_1;
 
-    weaponImg = new Image();
-    weaponImg.src = "./assets/weapon.png";
+    weapon.img = new Image();
+    weapon_left_1 = "./assets/weapon/weapon_left_1.png";
+    weapon_left_2 = "./assets/weapon/weapon_left_2.png";
+    weapon_up_1 = "./assets/weapon/weapon_up_1.png";
+    weapon_up_2 = "./assets/weapon/weapon_up_2.png";
+    weapon_right_1 = "./assets/weapon/weapon_right_1.png";
+    weapon_right_2 = "./assets/weapon/weapon_right_2.png";
+    weapon_down_1 = "./assets/weapon/weapon_down_1.png";
+    weapon_down_2 = "./assets/weapon/weapon_down_2.png";
+
+    weapon.img.src = weapon_left_1;
 
     enemyImg = new Image();
     enemyImg.src = "./assets/enemy.png";
@@ -115,7 +149,7 @@ window.onload = function() {
     // player movement
     document.addEventListener("keydown", (e) => {
         if (Object.keys(keys).includes(e.key)) {
-            if (e.key != "q") {
+            if (e.key != "q" && e.key != "f")  {
                 keys[e.key] = true;
                 pressedKeys.add(e.key);
             }
@@ -128,6 +162,7 @@ window.onload = function() {
 
     document.addEventListener("keypress", (e) => {
         if (e.key == "q") keys[e.key] = true;
+        if (e.key == "f") keys[e.key] = true;
     });
     setInterval(spriteChange, 250);
     setInterval(fps, 15);
@@ -138,10 +173,9 @@ function update() {
     ctx.clearRect(0,0,boardWidth,boardHeight);
 
     drawPlayerDash(dashX, dashY);
-    drawPlayer();
-    drawWeapon();
     drawEnemy();
-
+    drawPlayer();;
+    drawWeapon();
     displayHealthbar();
     displayCooldown();
 
@@ -159,6 +193,11 @@ function fps() {
 }
 
 function drawPlayer() {
+    choosePlayerImage();
+    ctx.drawImage(player.img,player.x,player.y,player.width,player.height);
+}
+
+function choosePlayerImage() {
     if (player.direction.up) {
         if (player.isMoving) {
             if (player.sprite) player.img.src = walk_up_1; else player.img.src = walk_up_2;
@@ -183,8 +222,6 @@ function drawPlayer() {
         }
         else if (player.sprite) player.img.src = idle_right_1; else player.img.src = idle_right_2;
     }
-    console.log(player.sprite);
-    ctx.drawImage(player.img,player.x,player.y,player.width,player.height);
 }
 
 function drawEnemy() {
@@ -218,6 +255,7 @@ function displayHealthbar() {
 }
 
 function movePlayer() {
+    if (player.stunned) return;
     if (pressedKeys.size > 0) player.isMoving = true; else player.isMoving = false;
     if (keys.w) {
         player.direction.up = true;
@@ -254,6 +292,7 @@ function movePlayer() {
         playerDash();
         player.x = Math.min(boardWidth-player.width, player.x + player.speed);
     }
+    if (player.isMoving) playerWalkSound.play();
     player.speed = playerSpeed;
 }
 
@@ -287,6 +326,8 @@ function drawPlayerDash(dashX, dashY) {
 
 function useWeapon() {
     if (keys.f && !weapon.onCooldown) {
+        weapon.animationStart = true;
+        weapon.animationEnd = false;
         weapon.onCooldown = true;
         weapon.active = true;
         if (player.direction.up) {
@@ -305,14 +346,36 @@ function useWeapon() {
             weapon.x = player.x + player.width;
             weapon.y = player.y;
         }
-        if (detectCollision(weapon,enemy)) enemy.health -= weapon.damage;
-        setTimeout(() => {weapon.active = false}, 100); 
+        if (detectCollision(weapon,enemy)) {
+            enemy.health -= weapon.damage;
+            weapon_hit.play();
+        } else weapon_standard.play();
+        setTimeout(() => {weapon.active = false}, 150); 
         setTimeout(() => {weapon.onCooldown = false}, 700); 
     }
 }
 
 function drawWeapon() {
-    if (weapon.active) ctx.drawImage(weaponImg,weapon.x,weapon.y,weapon.width,weapon.height);
+    if (weapon.active) {
+        player.stunned = true;
+        setTimeout(() => {player.stunned = false;}, 150);
+        if (weapon.animationStart) {
+            if (player.direction.up) weapon.img.src = weapon_up_1;
+            if (player.direction.left) weapon.img.src = weapon_left_1;
+            if (player.direction.down) weapon.img.src = weapon_down_1;
+            if (player.direction.right) weapon.img.src = weapon_right_1;
+            ctx.drawImage(weapon.img,weapon.x,weapon.y,weapon.width,weapon.height);
+        }
+        setTimeout(() => {weapon.animationStart = false;}, 60);
+        setTimeout(() => {weapon.animationEnd = true;}, 50);
+        if (weapon.animationEnd) {
+            if (player.direction.up) weapon.img.src = weapon_up_2;
+            if (player.direction.left) weapon.img.src = weapon_left_2;
+            if (player.direction.down) weapon.img.src = weapon_down_2;
+            if (player.direction.right) weapon.img.src = weapon_right_2;
+            ctx.drawImage(weapon.img,weapon.x,weapon.y,weapon.width,weapon.height);
+        }
+    }
 }
 
 function detectCollision(a, b) {
@@ -323,6 +386,7 @@ function detectCollision(a, b) {
 }
 
 function isCriticalHealth(a) {
-    if (a.health <= 30) return true;
+    let ratio = a.health/a.maxHealth;
+    if (ratio <= 0.25) return true;
     return false;
 }
