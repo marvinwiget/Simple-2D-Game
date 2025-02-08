@@ -3,13 +3,15 @@ let boardWidth = 960;
 let boardHeight = 768;
 let ctx;
 
+// sounds
+const playerDashSound = new Audio("./assets/dash.wav");
+
 // player
 let playerX = 300;
 let playerY = 600;
 let playerWidth = 64;
 let playerHeight = 64;
 let playerSpeed = 8;
-let playerImg;
 
 let dashX;
 let dashY;
@@ -24,6 +26,8 @@ const player = {
     health: 100,
     onDashCooldown: false,
     dashActive: false,
+    isMoving: false,
+    sprite: false,
     direction: {up: false, down: true, left: false, right: false}
 }
 
@@ -37,11 +41,20 @@ const keys = {
 }
 const pressedKeys = new Set();
 
+let idle_down_1;
+let idle_down_2;
+let walk_down_1;
+let walk_down_2;
+let idle_up_1;
+let idle_up_2;
+let walk_up_1;
+let walk_up_2;
 
+let num = 500;
 // weapon
 let weaponWidth = 64;
 let weaponHeight = 64;
-let weapon = {
+const weapon = {
     x: boardWidth,
     y: boardHeight,
     width: weaponWidth,
@@ -72,8 +85,24 @@ window.onload = function() {
     const canvas = document.getElementById("board");
     ctx = canvas.getContext("2d");
 
-    playerImg = new Image();
-    playerImg.src = "./assets/player.png";
+    player.img = new Image();
+    idle_down_1 = "./assets/player/idle_down_1.png";
+    idle_down_2 = "./assets/player/idle_down_2.png";
+    walk_down_1 = "./assets/player/walk_down_1.png";
+    walk_down_2 = "./assets/player/walk_down_2.png";
+    idle_up_1 = "./assets/player/idle_up_1.png";
+    idle_up_2 = "./assets/player/idle_up_2.png";
+    walk_up_1 = "./assets/player/walk_up_1.png";
+    walk_up_2 = "./assets/player/walk_up_2.png";
+    idle_left_1 = "./assets/player/idle_left_1.png";
+    idle_left_2 = "./assets/player/idle_left_2.png";
+    walk_left_1 = "./assets/player/walk_left_1.png";
+    walk_left_2 = "./assets/player/walk_left_2.png";
+    idle_right_1 = "./assets/player/idle_right_1.png";
+    idle_right_2 = "./assets/player/idle_right_2.png";
+    walk_right_1 = "./assets/player/walk_right_1.png";
+    walk_right_2 = "./assets/player/walk_right_2.png"; 
+
 
     weaponImg = new Image();
     weaponImg.src = "./assets/weapon.png";
@@ -100,32 +129,62 @@ window.onload = function() {
     document.addEventListener("keypress", (e) => {
         if (e.key == "q") keys[e.key] = true;
     });
-
+    setInterval(spriteChange, 250);
     setInterval(fps, 15);
 }   
 
 // every tick
 function update() {
     ctx.clearRect(0,0,boardWidth,boardHeight);
-    // moving
+
     drawPlayerDash(dashX, dashY);
     drawPlayer();
     drawWeapon();
     drawEnemy();
+
     displayHealthbar();
     displayCooldown();
+
     requestAnimationFrame(update);
 }
 
+function spriteChange() {
+    player.sprite = !player.sprite;
+}
+
 function fps() {
+
     movePlayer();
     useWeapon();
 }
 
-
-
 function drawPlayer() {
-    ctx.drawImage(playerImg,player.x,player.y,player.width,player.height);
+    if (player.direction.up) {
+        if (player.isMoving) {
+            if (player.sprite) player.img.src = walk_up_1; else player.img.src = walk_up_2;
+        }
+        else if (player.sprite) player.img.src = idle_up_1; else player.img.src = idle_up_2;
+    }
+    if (player.direction.down) {
+        if (player.isMoving) {
+            if (player.sprite) player.img.src = walk_down_1; else player.img.src = walk_down_2;
+        }
+        else if (player.sprite) player.img.src = idle_down_1; else player.img.src = idle_down_2;
+    }
+    if (player.direction.left) {
+        if (player.isMoving) {
+            if (player.sprite) player.img.src = walk_left_1; else player.img.src = walk_left_2;
+        }
+        else if (player.sprite) player.img.src = idle_left_1; else player.img.src = idle_left_2;
+    }
+    if (player.direction.right) {
+        if (player.isMoving) {
+            if (player.sprite) player.img.src = walk_right_1; else player.img.src = walk_right_2;
+        }
+        else if (player.sprite) player.img.src = idle_right_1; else player.img.src = idle_right_2;
+    }
+    console.log(player.sprite);
+    ctx.drawImage(player.img,player.x,player.y,player.width,player.height);
 }
 
 function drawEnemy() {
@@ -159,6 +218,7 @@ function displayHealthbar() {
 }
 
 function movePlayer() {
+    if (pressedKeys.size > 0) player.isMoving = true; else player.isMoving = false;
     if (keys.w) {
         player.direction.up = true;
         player.direction.down = false;
@@ -199,6 +259,7 @@ function movePlayer() {
 
 function playerDash() {
     if (keys.q && !player.onDashCooldown) {
+        playerDashSound.play();
         dashX = player.x;
         dashY = player.y;
         player.onDashCooldown = true;
@@ -211,20 +272,18 @@ function playerDash() {
     }
 }
 
-
 function drawPlayerDash(dashX, dashY) {
     if (player.dashActive) {
         ctx.globalAlpha = 0.15;
-        if (firstDashVisible) ctx.drawImage(playerImg,dashX,dashY,player.width,player.height);
+        if (firstDashVisible) ctx.drawImage(player.img,dashX,dashY,player.width,player.height);
         setTimeout(() => {firstDashVisible = false;}, 100);
         ctx.globalAlpha = 0.35;
         if (!firstDashVisible) ctx.clearRect(dashX,dashY,player.width,player.height);
-        ctx.drawImage(playerImg,dashX+(player.x-dashX)/2,dashY+(player.y-dashY)/2,player.width,player.height);
+        ctx.drawImage(player.img,dashX+(player.x-dashX)/2,dashY+(player.y-dashY)/2,player.width,player.height);
         ctx.globalAlpha = 1;
         
     }
 }
-
 
 function useWeapon() {
     if (keys.f && !weapon.onCooldown) {
