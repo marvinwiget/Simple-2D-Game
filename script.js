@@ -5,7 +5,7 @@ let ctx;
 
 // player
 let playerX = 300;
-let playerY = 700;
+let playerY = 600;
 let playerWidth = 64;
 let playerHeight = 64;
 let playerSpeed = 8;
@@ -13,12 +13,14 @@ let playerImg;
 
 let dashX;
 let dashY;
+let firstDashVisible = false;
 
 const player = {
     x: playerX,
     y: playerY,
     width: playerWidth,
     height: playerHeight,
+    speed: playerSpeed,
     health: 100,
     onDashCooldown: false,
     dashActive: false,
@@ -45,7 +47,8 @@ let weapon = {
     width: weaponWidth,
     height: weaponHeight,
     active: false,
-    onCooldown: false
+    onCooldown: false,
+    damage: 10
 }
 let weaponImg;
 
@@ -105,8 +108,8 @@ window.onload = function() {
 function update() {
     ctx.clearRect(0,0,boardWidth,boardHeight);
     // moving
-    drawPlayer();
     drawPlayerDash(dashX, dashY);
+    drawPlayer();
     drawWeapon();
     drawEnemy();
     displayHealthbar();
@@ -147,7 +150,11 @@ function displayHealthbar() {
     ctx.fillStyle = "red";
     ctx.font="32px sans-serif";
     ctx.textAlign = "center";
+    if (isCriticalHealth(enemy)) ctx.fillStyle = "red";
+    else ctx.fillStyle = "green";
     if (enemy.health > 0) ctx.fillText(enemy.health + " health",enemy.x+enemy.width/2,enemy.y-enemy.height/4);
+    if (isCriticalHealth(player)) ctx.fillStyle = "red";
+    else ctx.fillStyle = "green";
     ctx.fillText(player.health + " health",player.x+player.width/2,player.y-player.height/4);
 }
 
@@ -157,7 +164,8 @@ function movePlayer() {
         player.direction.down = false;
         player.direction.left = false;
         player.direction.right = false;
-        player.y = Math.max(0, player.y - playerSpeed);
+        playerDash();
+        player.y = Math.max(0, player.y - player.speed);
 
     }
     if (keys.a) {
@@ -165,7 +173,8 @@ function movePlayer() {
         player.direction.down = false;
         player.direction.left = true;
         player.direction.right = false;
-        player.x = Math.max(0, player.x - playerSpeed);
+        playerDash();
+        player.x = Math.max(0, player.x - player.speed);
 
     }
     if (keys.s) {
@@ -173,7 +182,8 @@ function movePlayer() {
         player.direction.down = true;
         player.direction.left = false;
         player.direction.right = false;
-        player.y = Math.min(boardHeight-player.height, player.y + playerSpeed);
+        playerDash();
+        player.y = Math.min(boardHeight-player.height, player.y + player.speed);
 
     }
     if (keys.d) {
@@ -181,10 +191,10 @@ function movePlayer() {
         player.direction.down = false;
         player.direction.left = false;
         player.direction.right = true;
-        player.x = Math.min(boardWidth-player.width, player.x + playerSpeed);
+        playerDash();
+        player.x = Math.min(boardWidth-player.width, player.x + player.speed);
     }
-    playerSpeed = 8;
-    playerDash();
+    player.speed = playerSpeed;
 }
 
 function playerDash() {
@@ -193,8 +203,9 @@ function playerDash() {
         dashY = player.y;
         player.onDashCooldown = true;
         player.dashActive = true;
-        if (pressedKeys.size > 1) playerSpeed *= 9;
-        else playerSpeed *= 12;
+        firstDashVisible = true;
+        if (pressedKeys.size > 1) player.speed *= 9;
+        else player.speed *= 12;
         setTimeout(() => {player.dashActive = false}, 200); 
         setTimeout(() => {player.onDashCooldown = false}, 1000);
     }
@@ -203,9 +214,14 @@ function playerDash() {
 
 function drawPlayerDash(dashX, dashY) {
     if (player.dashActive) {
-        ctx.globalAlpha = 0.25;
-        ctx.drawImage(playerImg,dashX,dashY,player.width,player.height);
+        ctx.globalAlpha = 0.15;
+        if (firstDashVisible) ctx.drawImage(playerImg,dashX,dashY,player.width,player.height);
+        setTimeout(() => {firstDashVisible = false;}, 100);
+        ctx.globalAlpha = 0.35;
+        if (!firstDashVisible) ctx.clearRect(dashX,dashY,player.width,player.height);
+        ctx.drawImage(playerImg,dashX+(player.x-dashX)/2,dashY+(player.y-dashY)/2,player.width,player.height);
         ctx.globalAlpha = 1;
+        
     }
 }
 
@@ -230,7 +246,7 @@ function useWeapon() {
             weapon.x = player.x + player.width;
             weapon.y = player.y;
         }
-        if (detectCollision(weapon,enemy)) enemy.health -= 10;
+        if (detectCollision(weapon,enemy)) enemy.health -= weapon.damage;
         setTimeout(() => {weapon.active = false}, 100); 
         setTimeout(() => {weapon.onCooldown = false}, 700); 
     }
@@ -245,4 +261,9 @@ function detectCollision(a, b) {
            a.x + a.width > b.x &&
            a.y < b.y + b.height &&
            a.y + a.height > b.y;
+}
+
+function isCriticalHealth(a) {
+    if (a.health <= 30) return true;
+    return false;
 }

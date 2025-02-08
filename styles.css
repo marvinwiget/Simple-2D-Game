@@ -1,0 +1,11 @@
+body {
+    text-align: center;
+}
+
+#board {
+    border: 3px solid;
+}
+
+.description {
+    font-size: xx-large;
+}
