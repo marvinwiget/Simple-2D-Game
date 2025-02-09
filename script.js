@@ -36,6 +36,9 @@ const player = {
     direction: {up: false, down: true, left: false, right: false}
 }
 
+const player_sprites = [];
+let player_image_temp;
+
 const keys = {
     w: false, // up
     a: false, // left
@@ -68,7 +71,7 @@ const weapon = {
     animationEnd: false,
     active: false,
     onCooldown: false,
-    damage: 10
+    damage: 100//24
 }
 let weapon_start;
 let weapon_end;
@@ -78,21 +81,44 @@ let enemyX = 200;
 let enemyY = 100;
 let enemyWidth = 64;
 let enemyHeight = 64;
+let enemySpeedLimitCheck = 0;
 class Enemy {
-    constructor(x,y,width,height,maxHealth) {
+    constructor(x,y,width,height,maxHealth,damage,speed) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.maxHealth = maxHealth;
         this.health = maxHealth;
+        this.damage = damage;
+        this.speed = speed;
+        this.startCondition = [x,y,width,height,maxHealth,damage,speed];
     }
+    reset() {
+        this.x = this.startCondition[0];
+        this.y = this.startCondition[1];
+        this.width = this.startCondition[2];
+        this.height = this.startCondition[3];
+        this.health = this.startCondition[4];
+        this.damage = this.startCondition[5];
+        this.speed = this.startCondition[6];
+        this.stunned = false;
+    }
+    stunned = false;
+    isMoving = false;
 }
 
-const enemy = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100);
+const enemy1 = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100,16,2);
+const enemy2 = new Enemy(enemyX, enemyY+100, enemyWidth, enemyHeight,150,12,3);
+const enemy3 = new Enemy(enemyX, enemyY+200, enemyWidth, enemyHeight,150,12,4);
 
-const enemies = [];
-enemies.push(enemy);
+function enemyAdd() {
+    enemies.push(enemy1);
+    enemies.push(enemy2);
+}
+
+let enemies = [];
+
 
 
 // on load function
@@ -118,22 +144,26 @@ window.onload = function() {
     walk_right_1 = "./assets/player/walk_right_1.png";
     walk_right_2 = "./assets/player/walk_right_2.png"; 
 
-    player.img.src = idle_down_2;
-    player.img.src = walk_down_1;
-    player.img.src = walk_down_2;
-    player.img.src = idle_up_1;
-    player.img.src = idle_up_2;
-    player.img.src = walk_up_1;
-    player.img.src = walk_up_2;
-    player.img.src = idle_left_1;
-    player.img.src = idle_left_2;
-    player.img.src = walk_left_1;
-    player.img.src = walk_left_2;
-    player.img.src = idle_right_1;
-    player.img.src = idle_right_2;
-    player.img.src = walk_right_1;
-    player.img.src = walk_right_2;
-    player.img.src = idle_down_1;
+    
+
+    player_sprites.push(idle_down_2);
+    player_sprites.push(walk_down_1);
+    player_sprites.push(walk_down_2);
+    player_sprites.push(idle_up_1);
+    player_sprites.push(idle_up_2);
+    player_sprites.push(walk_up_1);
+    player_sprites.push(walk_up_2);
+    player_sprites.push(idle_left_1);
+    player_sprites.push(idle_left_2);
+    player_sprites.push(walk_left_1);
+    player_sprites.push(walk_left_2);
+    player_sprites.push(idle_right_1);
+    player_sprites.push(idle_right_2);
+    player_sprites.push(walk_right_1);
+    player_sprites.push(walk_right_2);
+    player_sprites.push(idle_down_1);
+
+    
 
     weapon.img = new Image();
     weapon_left_1 = "./assets/weapon/weapon_left_1.png";
@@ -146,19 +176,18 @@ window.onload = function() {
     weapon_down_2 = "./assets/weapon/weapon_down_2.png";
 
     weapon.img.src = weapon_left_1;
-
-    enemies[0].img = new Image();
-    enemies[0].img.src = "./assets/enemy.png";
-
+    enemyAdd();
+    for (let i=0;i<enemies.length;i++) {
+        enemies[i].img = new Image();
+        enemies[i].img.src = "./assets/enemy.png";
+    }
     requestAnimationFrame(update);
 
     // player movement
     document.addEventListener("keydown", (e) => {
-        if (Object.keys(keys).includes(e.key)) {
-            if (e.key != "q" && e.key != "f")  {
-                keys[e.key] = true;
-                pressedKeys.add(e.key);
-            }
+        if (e.key == "w" || e.key == "a" || e.key == "s" || e.key == "d")  {
+            keys[e.key] = true;
+            pressedKeys.add(e.key);
         }
     });
     document.addEventListener("keyup", (e) => {
@@ -177,9 +206,12 @@ window.onload = function() {
 // every tick
 function update() {
     ctx.clearRect(0,0,boardWidth,boardHeight);
+    checkAliveEnemies();
+    checkAlivePlayer();
     drawPlayerDash(dashX, dashY);
     drawPlayer();
-    for (let i=0;i<enemies.length;i++) drawEnemy(enemies[i]);
+    drawEnemy();
+    displayEnemyHealthbar();
     drawWeapon();
     displayHealthbar();
     displayCooldown();
@@ -188,9 +220,65 @@ function update() {
 }
 
 function fps() {
-
+    moveEnemy();
     movePlayer();
     useWeapon();
+}
+function moveEnemy() {
+    for (let i=0;i<enemies.length;i++) {
+        if (!enemies[i].stunned) {
+            enemies[i].isMoving = true;
+            if (enemies[i].x < player.x) {
+                if (enemies.length > 1) {
+                    for (let j=0;j<enemies.length;j++) {
+                        if (i == j) continue;
+                        enemies[i].x += enemies[i].speed;
+                        if (detectCollision(enemies[i], enemies[j])) {
+                            enemies[i].x -= enemies[i].speed;
+                        }
+                    }
+                } else enemies[i].x += enemies[i].speed;
+            } else {
+                if (enemies.length > 1) {
+                    for (let j=0;j<enemies.length;j++) {
+                        if (i == j) continue;
+                        enemies[i].x -= enemies[i].speed;
+                        if (detectCollision(enemies[i], enemies[j])) {
+                            enemies[i].x += enemies[i].speed;
+                        }
+                    }          
+                } else enemies[i].x -= enemies[i].speed;
+            }
+            if (enemies[i].y < player.y) { 
+                if (enemies.length > 1) {
+                    for (let j=0;j<enemies.length;j++) {
+                        if (i == j) continue;
+                        enemies[i].y += enemies[i].speed;
+                        if (detectCollision(enemies[i], enemies[j])) {
+                            enemies[i].y -= enemies[i].speed;
+                        }
+                    }
+                } else enemies[i].y += enemies[i].speed;
+            } else {
+                if (enemies.length > 1) {
+                    for (let j=0;j<enemies.length;j++) {
+                        if (i == j) continue;
+                        enemies[i].y -= enemies[i].speed;
+                        if (detectCollision(enemies[i], enemies[j])) {
+                            enemies[i].y += enemies[i].speed;
+                        }
+                    }          
+                } else enemies[i].y -= enemies[i].speed;
+            }
+            if (detectCollision(enemies[i], player)) {
+                enemies[i].stunned = true;
+                player.health -= enemies[i].damage;
+                setTimeout(() => {try {enemies[i].stunned = false} catch (e) {}}, 1000);
+            }
+        } else {
+            enemies[i].isMoving = false;
+        }
+    }
 }
 
 
@@ -226,11 +314,10 @@ function choosePlayerImage() {
     }
 }
 
-function drawEnemy(e) {
+function drawEnemy() {
     for (let i=0;i<enemies.length;i++) {
-        if (enemies[i].health <= 0) enemies.splice(i,1);
+        ctx.drawImage(enemies[i].img,enemies[i].x,enemies[i].y,enemies[i].width,enemies[i].height);
     }
-    ctx.drawImage(e.img,e.x,e.y,e.width,e.height);
 }
 
 function displayCooldown() {
@@ -251,12 +338,19 @@ function displayHealthbar() {
     ctx.fillStyle = "red";
     ctx.font="32px sans-serif";
     ctx.textAlign = "center";
-    if (isCriticalHealth(enemy)) ctx.fillStyle = "red";
-    else ctx.fillStyle = "green";
-    if (enemy.health > 0) ctx.fillText(enemy.health + " health",enemy.x+enemy.width/2,enemy.y-enemy.height/4);
     if (isCriticalHealth(player)) ctx.fillStyle = "red";
     else ctx.fillStyle = "green";
     ctx.fillText(player.health + " health",player.x+player.width/2,player.y-player.height/4);
+}
+
+function displayEnemyHealthbar() {
+    for (let i=0;i<enemies.length;i++) {
+        ctx.font="32px sans-serif";
+        ctx.textAlign = "center";
+        if (isCriticalHealth(enemies[i])) ctx.fillStyle = "red";
+        else ctx.fillStyle = "green";
+        ctx.fillText(enemies[i].health + " health",enemies[i].x+enemies[i].width/2,enemies[i].y-enemies[i].height/4);
+    }
 }
 
 function movePlayer() {
@@ -330,6 +424,7 @@ function drawPlayerDash(dashX, dashY) {
 }
 
 function useWeapon() {
+    let objectHit = false;
     if (keys.f && !weapon.onCooldown) {
         weapon.animationStart = true;
         weapon.animationEnd = false;
@@ -351,10 +446,14 @@ function useWeapon() {
             weapon.x = player.x + player.width;
             weapon.y = player.y;
         }
-        if (detectCollision(weapon,enemy)) {
-            enemy.health -= weapon.damage;
-            weapon_hit.play();
-        } else weapon_standard.play();
+        for (let i=0;i<enemies.length;i++) if (detectCollision(weapon, enemies[i])) {
+            enemies[i].health -= weapon.damage;
+            enemies[i].stunned = true;
+            objectHit = true;
+            setTimeout(() => {try {enemies[i].stunned = false} catch (e) {}}, 250);
+        }
+        if (objectHit) weapon_hit.play(); else weapon_standard.play();
+
         setTimeout(() => {weapon.active = false}, 150); 
         setTimeout(() => {weapon.onCooldown = false}, 700); 
     }
@@ -396,3 +495,34 @@ function isCriticalHealth(a) {
     return false;
 }
 function spriteChange() {player.sprite = !player.sprite;}
+
+function checkAliveEnemies() {
+    for (let i=0;i<enemies.length;i++) {
+        if (enemies[i].health <= 0) {
+            let temp = enemies[i];
+            enemies[i] = enemies[0];
+            enemies[0] = temp;
+            enemies.shift();
+        }
+    }
+    if (enemies.length <= 0) gameReset();
+}
+
+function checkAlivePlayer() {
+    if (player.health <= 0) {
+        gameReset();
+    }
+}
+
+
+
+function gameReset() {
+    player.x = playerX;
+    player.y = playerY;
+    player.health = player.maxHealth;
+    enemies = [];
+    enemyAdd();
+    for(let i=0;i<enemies.length;i++) {
+        enemies[i].reset();
+    }
+}
