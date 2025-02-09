@@ -352,6 +352,8 @@ function displayEnemyHealthbar() {
         if (isCriticalHealth(enemies[i])) ctx.fillStyle = "red";
         else ctx.fillStyle = "green";
         ctx.fillText(enemies[i].health + " health",enemies[i].x+enemies[i].width/2,enemies[i].y-enemies[i].height/4);
+        ctx.fillStyle = "red";
+        if (enemies[i].stunned) ctx.fillText("stunned",enemies[i].x+enemies[i].width/2,enemies[i].y-enemies[i].height/4 - 32);
     }
 }
 
