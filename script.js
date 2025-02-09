@@ -8,6 +8,7 @@ const playerDashSound = new Audio("./assets/player/playerDash.wav");
 const weapon_standard = new Audio("./assets/weapon/weapon_standard.wav");
 const weapon_hit = new Audio("./assets/weapon/weapon_hit.wav");
 const playerWalkSound = new Audio("./assets/player/playerWalk.wav");
+const player_hit = new Audio("./assets/player/player_hit.wav");
 
 // player
 let playerX = 300;
@@ -71,7 +72,7 @@ const weapon = {
     animationEnd: false,
     active: false,
     onCooldown: false,
-    damage: 100//24
+    damage: 24 //24
 }
 let weapon_start;
 let weapon_end;
@@ -81,7 +82,7 @@ let enemyX = 200;
 let enemyY = 100;
 let enemyWidth = 64;
 let enemyHeight = 64;
-let enemySpeedLimitCheck = 0;
+let enemyMargin = 0;
 class Enemy {
     constructor(x,y,width,height,maxHealth,damage,speed) {
         this.x = x;
@@ -109,7 +110,7 @@ class Enemy {
 }
 
 const enemy1 = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100,16,2);
-const enemy2 = new Enemy(enemyX, enemyY+100, enemyWidth, enemyHeight,150,12,3);
+const enemy2 = new Enemy(enemyX+250, enemyY+100, enemyWidth, enemyHeight,150,12,3);
 const enemy3 = new Enemy(enemyX, enemyY+200, enemyWidth, enemyHeight,150,12,4);
 
 function enemyAdd() {
@@ -232,9 +233,9 @@ function moveEnemy() {
                 if (enemies.length > 1) {
                     for (let j=0;j<enemies.length;j++) {
                         if (i == j) continue;
-                        enemies[i].x += enemies[i].speed;
-                        if (detectCollision(enemies[i], enemies[j])) {
-                            enemies[i].x -= enemies[i].speed;
+                        if (enemies[i].x >= enemies[j].x || 
+                            enemies[i].x+enemies[i].width+enemies[i].speed+enemyMargin <= enemies[j].x) {
+                            enemies[i].x += enemies[i].speed;
                         }
                     }
                 } else enemies[i].x += enemies[i].speed;
@@ -242,20 +243,20 @@ function moveEnemy() {
                 if (enemies.length > 1) {
                     for (let j=0;j<enemies.length;j++) {
                         if (i == j) continue;
-                        enemies[i].x -= enemies[i].speed;
-                        if (detectCollision(enemies[i], enemies[j])) {
-                            enemies[i].x += enemies[i].speed;
+                        if (enemies[i].x <= enemies[j].x || 
+                            enemies[i].x >= enemies[j].x+enemies[j].width+enemies[j].speed+enemyMargin) {
+                            enemies[i].x -= enemies[i].speed;
                         }
-                    }          
+                    }
                 } else enemies[i].x -= enemies[i].speed;
             }
             if (enemies[i].y < player.y) { 
                 if (enemies.length > 1) {
                     for (let j=0;j<enemies.length;j++) {
                         if (i == j) continue;
-                        enemies[i].y += enemies[i].speed;
-                        if (detectCollision(enemies[i], enemies[j])) {
-                            enemies[i].y -= enemies[i].speed;
+                        if (enemies[i].y >= enemies[j].y || 
+                            enemies[i].y+enemies[i].height+enemies[i].speed+enemyMargin <= enemies[j].y) {
+                            enemies[i].y += enemies[i].speed;
                         }
                     }
                 } else enemies[i].y += enemies[i].speed;
@@ -263,15 +264,16 @@ function moveEnemy() {
                 if (enemies.length > 1) {
                     for (let j=0;j<enemies.length;j++) {
                         if (i == j) continue;
-                        enemies[i].y -= enemies[i].speed;
-                        if (detectCollision(enemies[i], enemies[j])) {
-                            enemies[i].y += enemies[i].speed;
+                        if (enemies[i].y <= enemies[j].y || 
+                            enemies[i].y >= enemies[j].y+enemies[j].height+enemies[j].speed+enemyMargin) {
+                            enemies[i].y -= enemies[i].speed;
                         }
-                    }          
+                    }
                 } else enemies[i].y -= enemies[i].speed;
             }
             if (detectCollision(enemies[i], player)) {
                 enemies[i].stunned = true;
+                player_hit.play();
                 player.health -= enemies[i].damage;
                 setTimeout(() => {try {enemies[i].stunned = false} catch (e) {}}, 1000);
             }
