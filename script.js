@@ -109,14 +109,16 @@ class Enemy {
     isMoving = false;
 }
 
-const enemy1 = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100,16,2);
+const enemy1 = new Enemy(enemyX,enemyY,enemyWidth,enemyHeight,100,16,1);
 const enemy2 = new Enemy(enemyX+250, enemyY+100, enemyWidth, enemyHeight,150,12,3);
-const enemy3 = new Enemy(enemyX, enemyY+200, enemyWidth, enemyHeight,150,12,4);
+const enemy3 = new Enemy(enemyX, enemyY+200, enemyWidth, enemyHeight,150,12,2);
+const enemy4 = new Enemy(enemyX+500, enemyY+100, enemyWidth,enemyHeight,25,35,2.5)
 
 function enemyAdd() {
     enemies.push(enemy1);
     enemies.push(enemy2);
 }
+
 
 let enemies = [];
 
@@ -164,8 +166,6 @@ window.onload = function() {
     player_sprites.push(walk_right_2);
     player_sprites.push(idle_down_1);
 
-    
-
     weapon.img = new Image();
     weapon_left_1 = "./assets/weapon/weapon_left_1.png";
     weapon_left_2 = "./assets/weapon/weapon_left_2.png";
@@ -178,6 +178,7 @@ window.onload = function() {
 
     weapon.img.src = weapon_left_1;
     enemyAdd();
+
     for (let i=0;i<enemies.length;i++) {
         enemies[i].img = new Image();
         enemies[i].img.src = "./assets/enemy.png";
@@ -210,78 +211,92 @@ function update() {
     checkAliveEnemies();
     checkAlivePlayer();
     drawPlayerDash(dashX, dashY);
-    drawPlayer();
     drawEnemy();
     displayEnemyHealthbar();
     drawWeapon();
     displayHealthbar();
+    drawPlayer();
     displayCooldown();
 
     requestAnimationFrame(update);
 }
 
 function fps() {
+    
     moveEnemy();
     movePlayer();
     useWeapon();
 }
 function moveEnemy() {
-    for (let i=0;i<enemies.length;i++) {
-        if (!enemies[i].stunned) {
-            enemies[i].isMoving = true;
-            if (enemies[i].x < player.x) {
-                if (enemies.length > 1) {
-                    for (let j=0;j<enemies.length;j++) {
-                        if (i == j) continue;
-                        if (enemies[i].x >= enemies[j].x || 
-                            enemies[i].x+enemies[i].width+enemies[i].speed+enemyMargin <= enemies[j].x) {
-                            enemies[i].x += enemies[i].speed;
-                        }
-                    }
-                } else enemies[i].x += enemies[i].speed;
-            } else {
-                if (enemies.length > 1) {
-                    for (let j=0;j<enemies.length;j++) {
-                        if (i == j) continue;
-                        if (enemies[i].x <= enemies[j].x || 
-                            enemies[i].x >= enemies[j].x+enemies[j].width+enemies[j].speed+enemyMargin) {
-                            enemies[i].x -= enemies[i].speed;
-                        }
-                    }
-                } else enemies[i].x -= enemies[i].speed;
+    for (let i = 0; i < enemies.length; i++) {
+        let enemy = enemies[i];
+
+        if (enemy.stunned) {
+            enemy.isMoving = false;
+            continue;
+        }
+
+        enemy.isMoving = true;
+
+        let newX = enemy.x;
+        let newY = enemy.y;
+
+        // Determine movement direction
+        if (enemy.x < player.x) newX += enemy.speed;
+        else if (enemy.x > player.x) newX -= enemy.speed;
+
+        if (enemy.y < player.y) newY += enemy.speed;
+        else if (enemy.y > player.y) newY -= enemy.speed;
+
+        // Check for collisions with other enemies
+        let canMoveX = true;
+        let canMoveY = true;
+
+        for (let j = 0; j < enemies.length; j++) {
+            if (i === j) continue; // Skip self-check
+
+            let other = enemies[j];
+
+            if (
+                newX < other.x + other.width + enemyMargin &&
+                newX + enemy.width + enemyMargin > other.x &&
+                enemy.y < other.y + other.height &&
+                enemy.y + enemy.height > other.y
+            ) {
+                canMoveX = false;
             }
-            if (enemies[i].y < player.y) { 
-                if (enemies.length > 1) {
-                    for (let j=0;j<enemies.length;j++) {
-                        if (i == j) continue;
-                        if (enemies[i].y >= enemies[j].y || 
-                            enemies[i].y+enemies[i].height+enemies[i].speed+enemyMargin <= enemies[j].y) {
-                            enemies[i].y += enemies[i].speed;
-                        }
-                    }
-                } else enemies[i].y += enemies[i].speed;
-            } else {
-                if (enemies.length > 1) {
-                    for (let j=0;j<enemies.length;j++) {
-                        if (i == j) continue;
-                        if (enemies[i].y <= enemies[j].y || 
-                            enemies[i].y >= enemies[j].y+enemies[j].height+enemies[j].speed+enemyMargin) {
-                            enemies[i].y -= enemies[i].speed;
-                        }
-                    }
-                } else enemies[i].y -= enemies[i].speed;
+
+            if (
+                newY < other.y + other.height + enemyMargin &&
+                newY + enemy.height + enemyMargin > other.y &&
+                enemy.x < other.x + other.width &&
+                enemy.x + enemy.width > other.x
+            ) {
+                canMoveY = false;
             }
-            if (detectCollision(enemies[i], player)) {
-                enemies[i].stunned = true;
+        }
+
+        // Apply movement if no collision
+        if (canMoveX) enemy.x = newX;
+        if (canMoveY) enemy.y = newY;
+
+        // Check collision with player
+        if (detectCollision(enemy, player)) {
+            enemy.stunned = true;
+            if (!player.dashActive) {
                 player_hit.play();
-                player.health -= enemies[i].damage;
-                setTimeout(() => {try {enemies[i].stunned = false} catch (e) {}}, 1000);
+                player.health -= enemy.damage;
             }
-        } else {
-            enemies[i].isMoving = false;
+            setTimeout(() => {
+                try {
+                    enemy.stunned = false;
+                } catch (e) {}
+            }, 1000);
         }
     }
 }
+
+
 
 
 function drawPlayer() {
